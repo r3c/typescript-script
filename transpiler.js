@@ -6,12 +6,11 @@
     var scripts = {
         total: 0, //total number of scripts to be loaded
         loaded: 0, //current number of loaded scripts
-        data: [], //file data
-        name: [] //file name
+        data: [] //file names, source code and options
     };
 
     //Function loads each script and pushes its content into scripts.data
-    var load = function (url) {
+    var load = function (url, options) {
         var xhr = window.ActiveXObject ? new window.ActiveXObject('Microsoft.XMLHTTP') : new window.XMLHttpRequest();;
         xhr.open('GET', url, true);
         if ('overrideMimeType' in xhr) xhr.overrideMimeType('text/plain');
@@ -19,8 +18,7 @@
             if (xhr.readyState !== 4) return;
             if (xhr.status === 0 || xhr.status === 200) {
                 scripts.loaded++;
-                scripts.data.push(xhr.responseText);
-                scripts.name.push(url.slice(url.lastIndexOf('/') + 1));
+                scripts.data.push([url.slice(url.lastIndexOf('/') + 1), xhr.responseText, options]);
                 if (scripts.loaded === scripts.total) compile();
                 return xhr.responseText;
             } else {
@@ -32,7 +30,7 @@
 
     //Compiles each of the scripts found within scripts.data
     var compile = function () {
-        if (scripts.data.length == 0 || scripts.data.length != scripts.name.length) return; //no reason to compile when there are no scripts
+        if (scripts.data.length == 0) return; //no reason to compile when there are no scripts
         var elem, source = '',
             body = document.getElementsByTagName('body')[0];
         scripts.total = 0; //clear the 'queue' incase the xhr response was super quick and happened before the initializer finished
@@ -53,11 +51,13 @@
             source = sessionStorage.getItem('typescript' + hashCode(scripts.data.join('')));
         } else {
             (function () {
-                var filename;
                 for (num = 0; num < scripts.data.length; num++) {
-                    filename = scripts.name[num];
-                    var src = scripts.data[num];
-                    source += ts.transpile(src);
+                    var script = scripts.data[num];
+                    var filename = script[0];
+                    var options = script[2];
+                    var input = script[1];
+
+                    source += ts.transpile(input, options, filename);
                 }
             })();
         }
@@ -75,13 +75,17 @@
         var script = document.getElementsByTagName('script');
         var i, src = [];
         for (i = 0; i < script.length; i++) {
-            if (script[i].type == 'text/typescript') {
-                if (script[i].src) {
+            var element = script[i];
+
+            if (element.type == 'text/typescript') {
+                var dataset = element.dataset;
+                var options = dataset.options !== undefined ? JSON.parse(dataset.options) : undefined;
+
+                if (element.src) {
                     scripts.total++
-                    load(script[i].src);
+                    load(element.src, options);
                 } else {
-                    scripts.data.push(script[i].innerHTML);
-                    scripts.name.push('innerHTML'+scripts.total);
+                    scripts.data.push(['innerHTML' + scripts.total, element.innerHTML, options]);
                     scripts.total++;
                     scripts.loaded++;
                 }
