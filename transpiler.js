@@ -20,7 +20,7 @@
             if (xhr.status === 0 || xhr.status === 200) {
                 scripts.loaded++;
                 scripts.data.push(xhr.responseText);
-                scripts.name.push(url);
+                scripts.name.push(url.slice(url.lastIndexOf('/') + 1));
                 if (scripts.loaded === scripts.total) compile();
                 return xhr.responseText;
             } else {
@@ -55,7 +55,7 @@
             (function () {
                 var filename;
                 for (num = 0; num < scripts.data.length; num++) {
-                    filename = scripts.name[num] = scripts.name[num].slice(scripts.name[num].lastIndexOf('/') + 1);
+                    filename = scripts.name[num];
                     var src = scripts.data[num];
                     source += ts.transpile(src);
                 }
